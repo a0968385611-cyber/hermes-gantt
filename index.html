@@ -245,9 +245,22 @@ async function syncFromNotion() {
       if (r.ms_str) { try { t.milestones = JSON.parse(r.ms_str); } catch(e){} }
       return t;
     });
+    // 用父任務ID建立關係（若有填）
     tasks.forEach(t => {
       if (t.pid_str) { const p = idMap[t.pid_str]; if (p) t.pid = p.id; }
     });
+    // 若父任務ID沒填，用層級推算父子關係
+    for (let i = 0; i < tasks.length; i++) {
+      if (tasks[i].pid !== null) continue; // 已有父任務就跳過
+      if (tasks[i].level === 0) continue;  // 頂層不需要
+      // 往前找最近一個層級比自己小1的任務作為父任務
+      for (let j = i - 1; j >= 0; j--) {
+        if (tasks[j].level === tasks[i].level - 1) {
+          tasks[i].pid = tasks[j].id;
+          break;
+        }
+      }
+    }
     tasks.forEach(t => {
       if (t.dep_str) t.deps = t.dep_str.split(',').map(s => { const d = idMap[s.trim()]; return d ? d.id : null; }).filter(Boolean);
     });
